@@ -1,6 +1,6 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE TypeOperators    #-}
 {- |
 The implementations in this module work entirely in the 'A.Acc' domain.
 This means that they can be applied to any array
@@ -29,33 +29,34 @@ module Data.Array.Accelerate.Fourier.Adhoc (
    SubTransform(SubTransform),
    ) where
 
-import qualified Data.Array.Accelerate.Fourier.Private as Fourier
-import qualified Data.Array.Accelerate.Fourier.Sign as Sign
-import Data.Array.Accelerate.Fourier.Private
-          (SubTransform(SubTransform), SubTransformPair(SubTransformPair),
-           Transform, twist, )
-import Data.Array.Accelerate.Fourier.Utility (scaleDown, )
-import Data.Array.Accelerate.Fourier.Sign (Sign, )
+import           Data.Array.Accelerate.Fourier.Private  (SubTransform (SubTransform),
+                                                         SubTransformPair (SubTransformPair),
+                                                         Transform, twist)
+import qualified Data.Array.Accelerate.Fourier.Private  as Fourier
+import           Data.Array.Accelerate.Fourier.Sign     (Sign)
+import qualified Data.Array.Accelerate.Fourier.Sign     as Sign
+import           Data.Array.Accelerate.Fourier.Utility  (scaleDown)
 
-import qualified Data.Array.Accelerate.LinearAlgebra as LinAlg
-import Data.Array.Accelerate.LinearAlgebra
-          (zipExtrudedVectorWith, zipExtrudedMatrixWith, )
+import           Data.Array.Accelerate.LinearAlgebra    (zipExtrudedMatrixWith,
+                                                         zipExtrudedVectorWith)
+import qualified Data.Array.Accelerate.LinearAlgebra    as LinAlg
 
-import qualified Data.Array.Accelerate.Utility.Sliced as Sliced
-import qualified Data.Array.Accelerate.Utility.Sliced1 as Sliced1
-import qualified Data.Array.Accelerate.Utility.Arrange as Arrange
-import qualified Data.Array.Accelerate.Utility.Lift.Exp as Exp
+import qualified Data.Array.Accelerate.Utility.Arrange  as Arrange
+import           Data.Array.Accelerate.Utility.Lift.Acc (acc)
 import qualified Data.Array.Accelerate.Utility.Lift.Acc as Acc
-import Data.Array.Accelerate.Utility.Lift.Exp (expr)
-import Data.Array.Accelerate.Utility.Lift.Acc (acc)
-import Data.Array.Accelerate.Utility.Ord (argminimum)
+import           Data.Array.Accelerate.Utility.Lift.Exp (expr)
+import qualified Data.Array.Accelerate.Utility.Lift.Exp as Exp
+import           Data.Array.Accelerate.Utility.Ord      (argminimum)
+import qualified Data.Array.Accelerate.Utility.Sliced   as Sliced
+import qualified Data.Array.Accelerate.Utility.Sliced1  as Sliced1
 
-import qualified Data.Array.Accelerate.Data.Complex as Complex
-import Data.Array.Accelerate.Data.Complex (Complex, )
+import           Data.Array.Accelerate.Data.Complex     (Complex)
+import qualified Data.Array.Accelerate.Data.Complex     as Complex
 
-import qualified Data.Array.Accelerate as A
-import Data.Array.Accelerate.Data.Bits ((.&.))
-import Data.Array.Accelerate (Slice, Shape, DIM1, Z(Z), (:.)((:.)), Exp, )
+import           Data.Array.Accelerate                  ((:.) ((:.)), DIM1, Exp,
+                                                         Shape, Slice, Z (Z))
+import qualified Data.Array.Accelerate                  as A
+import           Data.Array.Accelerate.Data.Bits        ((.&.))
 
 
 
@@ -71,7 +72,7 @@ However, they are not as sophisticated as the algorithms in
 "Data.Array.Accelerate.Fourier.Planned".
 -}
 transform ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) ->
    Transform (sh:.Int) (Complex a)
 transform sign arr =
@@ -98,7 +99,7 @@ divideMaxPower fac =
 Split-Radix for power-of-two sizes.
 -}
 ditSplitRadix ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) ->
    Transform (sh:.Int) (Complex a)
 ditSplitRadix sign arr =
@@ -107,7 +108,7 @@ ditSplitRadix sign arr =
       arr (ditSplitRadixLoop sign arr)
 
 ditSplitRadixLoop ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) ->
    Transform (sh:.Int) (Complex a)
 ditSplitRadixLoop sign =
@@ -135,7 +136,7 @@ ditSplitRadixLoop sign =
 Decimation in time for power-of-two sizes.
 -}
 dit2 ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) ->
    Transform (sh:.Int) (Complex a)
 dit2 sign =
@@ -152,7 +153,7 @@ dit2 sign =
    A.replicate (A.lift $ A.Any :. (1::Int) :. A.All)
 
 ditStep ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) ->
    Transform (sh:.Int:.Int) (Complex a)
 ditStep sign x =
@@ -168,7 +169,7 @@ These sizes are known as 5-smooth numbers or the Hamming sequence.
 <http://oeis.org/A051037>.
 -}
 dit235 ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) ->
    Transform (sh:.Int) (Complex a)
 dit235 sign =
@@ -203,7 +204,7 @@ dit235 sign =
    A.replicate (A.lift $ A.Any :. (1::Int) :. A.All)
 
 dit235Step ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) ->
    Exp Int ->
    Transform (sh:.Int:.Int) (Complex a)
@@ -294,7 +295,7 @@ pow e n = A.the $ A.product $ A.fill (A.index1 e) n
 
 
 _transformChirp ::
-   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) ->
    Exp Int ->
    (Transform DIM1 (Complex a),
@@ -313,7 +314,7 @@ _transformChirp sign padLen (analysis1,analysis,synthesis) arr =
            LinAlg.zipExtrudedVectorWith (*) chirp arr)
 
 transformChirp ::
-   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) ->
    Exp Int ->
    SubTransformPair (Complex a) ->
@@ -339,7 +340,7 @@ transformChirp sign padLen (SubTransformPair analysis synthesis) arr =
 Transformation of arbitrary length based on Bluestein on a power-of-two size.
 -}
 transformChirp2 ::
-   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Transform (sh:.Int) (Complex a)
 transformChirp2 sign arr =
    transformChirp sign
@@ -352,7 +353,7 @@ transformChirp2 sign arr =
 Transformation of arbitrary length based on Bluestein on a 5-smooth size.
 -}
 transformChirp235 ::
-   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Transform (sh:.Int) (Complex a)
 transformChirp235 sign arr =
    transformChirp sign
@@ -362,7 +363,7 @@ transformChirp235 sign arr =
 
 
 transform2d ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    SubTransform (Complex a) ->
    Transform (sh:.Int:.Int) (Complex a)
 transform2d (SubTransform trans) =
@@ -370,7 +371,7 @@ transform2d (SubTransform trans) =
    LinAlg.transpose . trans
 
 transform3d ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    SubTransform (Complex a) ->
    Transform (sh:.Int:.Int:.Int) (Complex a)
 transform3d (SubTransform trans) =

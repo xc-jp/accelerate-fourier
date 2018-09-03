@@ -1,6 +1,6 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE TypeOperators    #-}
 {- |
 Compute transforms on real data based on complex-valued transforms.
 -}
@@ -21,22 +21,23 @@ module Data.Array.Accelerate.Fourier.Real (
    entangleCoefficient,
    ) where
 
-import qualified Data.Array.Accelerate.Fourier.Sign as Sign
-import qualified Data.Array.Accelerate.Fourier.Private as Fourier
-import qualified Data.Array.Accelerate.Cyclic as Cyclic
+import qualified Data.Array.Accelerate.Cyclic           as Cyclic
+import qualified Data.Array.Accelerate.Fourier.Private  as Fourier
+import qualified Data.Array.Accelerate.Fourier.Sign     as Sign
 
-import qualified Data.Array.Accelerate.Utility.Sliced as Sliced
+import           Data.Array.Accelerate.Utility.Lift.Exp (expr)
 import qualified Data.Array.Accelerate.Utility.Lift.Exp as Exp
-import Data.Array.Accelerate.Utility.Lift.Exp (expr)
+import qualified Data.Array.Accelerate.Utility.Sliced   as Sliced
 
-import Data.Array.Accelerate.LinearAlgebra (zipExtrudedVectorWith, )
+import           Data.Array.Accelerate.LinearAlgebra    (zipExtrudedVectorWith)
 
-import qualified Data.Array.Accelerate.Data.Complex as Complex
-import Data.Array.Accelerate.Data.Complex (Complex((:+)), )
+import           Data.Array.Accelerate.Data.Complex     (Complex ((:+)))
+import qualified Data.Array.Accelerate.Data.Complex     as Complex
 
-import qualified Data.Array.Accelerate as A
-import Data.Array.Accelerate
-          (Acc, Array, Exp, Slice, Shape, (:.)((:.)), (!), (?), )
+import           Data.Array.Accelerate                  ((:.) ((:.)), Acc,
+                                                         Array, Exp, Shape,
+                                                         Slice, (!), (?))
+import qualified Data.Array.Accelerate                  as A
 
 
 {- |
@@ -46,7 +47,7 @@ Input must have an even size.
 Result has the same size as the input, i.e. it is not halved.
 -}
 toSpectrum ::
-   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Fourier.Transform (sh:.Int) (Complex a) ->
    Acc (Array (sh:.Int) a) -> Acc (Array (sh:.Int) (Complex a))
 toSpectrum subTrans arr =
@@ -69,7 +70,7 @@ toSpectrum subTrans arr =
        A.zipWith (+) evens odds
 
 complexDeinterleave ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Acc (Array (sh:.Int) a) -> Acc (Array (sh:.Int) (Complex a))
 complexDeinterleave arr =
    let (sh:.len) = Exp.unlift (expr:.expr) $ A.shape arr
@@ -89,7 +90,7 @@ Input must be self-adjoint and must have an even size.
 Result has the same size as the input, i.e. it is not doubled.
 -}
 fromSpectrum ::
-   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Fourier.Transform (sh:.Int) (Complex a) ->
    Acc (Array (sh:.Int) (Complex a)) -> Acc (Array (sh:.Int) a)
 fromSpectrum subTrans spec =
@@ -106,7 +107,7 @@ fromSpectrum subTrans spec =
    in  complexInterleave $ subTrans $ A.zipWith (+) fe fo
 
 complexInterleave ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Acc (Array (sh:.Int) (Complex a)) -> Acc (Array (sh:.Int) a)
 complexInterleave arr =
    let (sh:.len) = Exp.unlift (expr:.expr) $ A.shape arr
@@ -126,7 +127,7 @@ using a complex-to-complex transform of the same size.
 Input can have arbitrary size.
 -}
 twoToSpectrum ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Fourier.Transform (sh:.Int) (Complex a) ->
    Acc (Array (sh:.Int) (a,a)) ->
    Acc (Array (sh:.Int) (Complex a, Complex a))
@@ -135,7 +136,7 @@ twoToSpectrum subTrans =
    A.map (Exp.modify (expr,expr) $ uncurry (:+))
 
 twoToSpectrum2d ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Fourier.Transform (sh:.Int:.Int) (Complex a) ->
    Acc (Array (sh:.Int:.Int) (a,a)) ->
    Acc (Array (sh:.Int:.Int) (Complex a, Complex a))
@@ -165,21 +166,21 @@ It holds: flip (spec f) = conj (spec f).
   -> this swaps role of f and g in the proof above
 -}
 untangleSpectra ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Acc (Array (sh:.Int) (Complex a)) ->
    Acc (Array (sh:.Int) (Complex a, Complex a))
 untangleSpectra spec =
    A.zipWith untangleCoefficient spec (Cyclic.reverse spec)
 
 untangleSpectra2d ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Acc (Array (sh:.Int:.Int) (Complex a)) ->
    Acc (Array (sh:.Int:.Int) (Complex a, Complex a))
 untangleSpectra2d spec =
    A.zipWith untangleCoefficient spec (Cyclic.reverse2d spec)
 
 untangleCoefficient ::
-   (A.RealFloat a) =>
+   (A.RealFloat a, A.Elt (Complex a)) =>
    Exp (Complex a) -> Exp (Complex a) -> Exp (Complex a, Complex a)
 untangleCoefficient a b =
    let bc = Complex.conjugate b
@@ -187,7 +188,7 @@ untangleCoefficient a b =
 
 
 twoFromSpectrum ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Fourier.Transform (sh:.Int) (Complex a) ->
    Acc (Array (sh:.Int) (Complex a, Complex a)) ->
    Acc (Array (sh:.Int) (a,a))
@@ -196,7 +197,7 @@ twoFromSpectrum subTrans =
    subTrans . entangleSpectra
 
 twoFromSpectrum2d ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Fourier.Transform (sh:.Int:.Int) (Complex a) ->
    Acc (Array (sh:.Int:.Int) (Complex a, Complex a)) ->
    Acc (Array (sh:.Int:.Int) (a,a))
@@ -205,19 +206,19 @@ twoFromSpectrum2d subTrans =
    subTrans . entangleSpectra2d
 
 entangleSpectra ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Acc (Array (sh:.Int) (Complex a, Complex a)) ->
    Acc (Array (sh:.Int) (Complex a))
 entangleSpectra = entangleSpectraGen
 
 entangleSpectra2d ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Acc (Array (sh:.Int:.Int) (Complex a, Complex a)) ->
    Acc (Array (sh:.Int:.Int) (Complex a))
 entangleSpectra2d = entangleSpectraGen
 
 entangleSpectraGen ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    Acc (Array sh (Complex a, Complex a)) ->
    Acc (Array sh (Complex a))
 entangleSpectraGen = A.map (A.fst . A.uncurry entangleCoefficient)
@@ -228,14 +229,14 @@ entangleSpectraGen = A.map (A.fst . A.uncurry entangleCoefficient)
 2i*d = a - bc     bc = c - i*d
 -}
 entangleCoefficient ::
-   (A.RealFloat a) =>
+   (A.RealFloat a, A.Elt (Complex a)) =>
    Exp (Complex a) -> Exp (Complex a) -> Exp (Complex a, Complex a)
 entangleCoefficient c d =
    let di = d * imagUnit
    in  A.lift (c + di, Complex.conjugate (c - di))
 
 
-imagUnit :: (A.Num a) => Exp (Complex a)
+imagUnit :: (A.Num a, A.Elt (Complex a)) => Exp (Complex a)
 imagUnit = A.lift $ zero :+ one
 
 zero, one :: (A.Num a) => Exp a

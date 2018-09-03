@@ -1,19 +1,23 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE TypeOperators    #-}
 module Data.Array.Accelerate.Convolution.Preprocessed (
    Transform2,
    karatsuba,
    ) where
 
-import Data.Array.Accelerate.Convolution.Private (Transform2, indexPad, )
+import           Data.Array.Accelerate.Convolution.Private (Transform2,
+                                                            indexPad)
 
-import qualified Data.Array.Accelerate.Utility.Sliced as Sliced
-import qualified Data.Array.Accelerate.Utility.Lift.Exp as Exp
-import Data.Array.Accelerate.Utility.Lift.Exp (expr)
+import           Data.Array.Accelerate.Utility.Lift.Exp    (expr)
+import qualified Data.Array.Accelerate.Utility.Lift.Exp    as Exp
+import qualified Data.Array.Accelerate.Utility.Sliced      as Sliced
 
-import qualified Data.Array.Accelerate as A
-import Data.Array.Accelerate ((:.)((:.)), Any(Any), All(All), Slice, Shape, )
+import           Data.Array.Accelerate                     ((:.) ((:.)),
+                                                            All (All),
+                                                            Any (Any), Shape,
+                                                            Slice)
+import qualified Data.Array.Accelerate                     as A
 
 
 {- |

@@ -1,6 +1,6 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE TypeOperators    #-}
 module Data.Array.Accelerate.Convolution.Adhoc (
    Transform2,
    karatsuba,
@@ -8,23 +8,26 @@ module Data.Array.Accelerate.Convolution.Adhoc (
    complex,
    ) where
 
-import Data.Array.Accelerate.Convolution.Private (Transform2, indexPad, )
-import Data.Array.Accelerate.Fourier.Private (Transform, )
+import           Data.Array.Accelerate.Convolution.Private (Transform2,
+                                                            indexPad)
+import           Data.Array.Accelerate.Fourier.Private     (Transform)
 
-import qualified Data.Array.Accelerate.Utility.Sliced1 as Sliced1
-import qualified Data.Array.Accelerate.Utility.Sliced as Sliced
-import qualified Data.Array.Accelerate.Utility.Lift.Exp as Exp
-import qualified Data.Array.Accelerate.Utility.Lift.Acc as Acc
-import Data.Array.Accelerate.Utility.Lift.Exp (expr)
-import Data.Array.Accelerate.Utility.Lift.Acc (acc)
+import           Data.Array.Accelerate.Utility.Lift.Acc    (acc)
+import qualified Data.Array.Accelerate.Utility.Lift.Acc    as Acc
+import           Data.Array.Accelerate.Utility.Lift.Exp    (expr)
+import qualified Data.Array.Accelerate.Utility.Lift.Exp    as Exp
+import qualified Data.Array.Accelerate.Utility.Sliced      as Sliced
+import qualified Data.Array.Accelerate.Utility.Sliced1     as Sliced1
 
-import qualified Data.Array.Accelerate.Data.Complex as Complex
-import Data.Array.Accelerate.Data.Complex (Complex((:+)), )
+import           Data.Array.Accelerate.Data.Complex        (Complex ((:+)))
+import qualified Data.Array.Accelerate.Data.Complex        as Complex
 
-import qualified Data.Array.Accelerate as A
-import Data.Array.Accelerate
-          (Exp, Acc, Array,
-           Z(Z), (:.)((:.)), Any(Any), All(All), Slice, Shape, (!), )
+import           Data.Array.Accelerate                     ((:.) ((:.)), Acc,
+                                                            All (All),
+                                                            Any (Any), Array,
+                                                            Exp, Shape, Slice,
+                                                            Z (Z), (!))
+import qualified Data.Array.Accelerate                     as A
 
 
 {- |
@@ -113,7 +116,7 @@ Turn a real-valued convolution into a complex-valued convolution.
 Can be removed when we get @instance IsNum (Complex a)@.
 -}
 complex, _complex ::
-   (Shape sh, Slice sh, A.Num a) =>
+   (Shape sh, Slice sh, A.Num a, A.Elt (Complex a)) =>
    Transform2 (sh :. Int) a ->
    Transform2 (sh :. Int) (Complex a)
 complex conv x y =

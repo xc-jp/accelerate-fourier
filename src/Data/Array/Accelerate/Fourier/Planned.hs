@@ -1,6 +1,6 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE TypeOperators    #-}
 {- |
 Like "Data.Array.Accelerate.Fourier.Preprocessed"
 this module allows to factor out some preprocessing.
@@ -52,37 +52,39 @@ module Data.Array.Accelerate.Fourier.Planned (
    ) where
 
 import qualified Data.Array.Accelerate.Convolution.Adhoc as Convolution
-import qualified Data.Array.Accelerate.Permutation as Permutation
-import qualified Data.Array.Accelerate.NumberTheory as NumberTheory
-import qualified Data.Array.Accelerate.Fourier.Private as Fourier
-import qualified Data.Array.Accelerate.Fourier.Sign as Sign
-import Data.Array.Accelerate.Fourier.Private
-          (SubTransform(SubTransform), SubTransformPair(SubTransformPair),
-           SubPairTransform(SubPairTransform),
-           PairTransform, Transform, )
-import Data.Array.Accelerate.Fourier.Utility (scaleDown, )
-import Data.Array.Accelerate.Fourier.Sign (Sign(Sign))
+import           Data.Array.Accelerate.Fourier.Private   (PairTransform, SubPairTransform (SubPairTransform),
+                                                          SubTransform (SubTransform),
+                                                          SubTransformPair (SubTransformPair),
+                                                          Transform)
+import qualified Data.Array.Accelerate.Fourier.Private   as Fourier
+import           Data.Array.Accelerate.Fourier.Sign      (Sign (Sign))
+import qualified Data.Array.Accelerate.Fourier.Sign      as Sign
+import           Data.Array.Accelerate.Fourier.Utility   (scaleDown)
+import qualified Data.Array.Accelerate.NumberTheory      as NumberTheory
+import qualified Data.Array.Accelerate.Permutation       as Permutation
 
-import qualified Data.Array.Accelerate.LinearAlgebra as LinAlg
-import Data.Array.Accelerate.LinearAlgebra
-          (zipExtrudedVectorWith, zipExtrudedMatrixWith, )
+import           Data.Array.Accelerate.LinearAlgebra     (zipExtrudedMatrixWith,
+                                                          zipExtrudedVectorWith)
+import qualified Data.Array.Accelerate.LinearAlgebra     as LinAlg
 
-import qualified Data.Array.Accelerate.Utility.Lift.Exp as Exp
-import Data.Array.Accelerate.Utility.Lift.Exp (expr)
+import           Data.Array.Accelerate.Utility.Lift.Exp  (expr)
+import qualified Data.Array.Accelerate.Utility.Lift.Exp  as Exp
 
-import qualified Data.Array.Accelerate.Utility.Sliced as Sliced
-import qualified Data.Array.Accelerate as A
-import Data.Array.Accelerate.Data.Complex (Complex, conjugate, )
-import Data.Array.Accelerate
-          (Exp, Acc, Array, DIM1, DIM2, (:.)((:.)), Elt, Slice, Shape, )
+import           Data.Array.Accelerate                   ((:.) ((:.)), Acc,
+                                                          Array, DIM1, DIM2,
+                                                          Elt, Exp, Shape,
+                                                          Slice)
+import qualified Data.Array.Accelerate                   as A
+import           Data.Array.Accelerate.Data.Complex      (Complex, conjugate)
+import qualified Data.Array.Accelerate.Utility.Sliced    as Sliced
 
-import qualified Control.Monad.Trans.State as State
-import Control.Monad (liftM2, )
-import Control.Applicative ((<$>), )
-import Data.Traversable (for, )
+import           Control.Applicative                     ((<$>))
+import           Control.Monad                           (liftM2)
+import qualified Control.Monad.Trans.State               as State
+import           Data.Traversable                        (for)
 
-import qualified Data.Map as Map
-import Data.Tuple.HT (mapPair, )
+import qualified Data.Map                                as Map
+import           Data.Tuple.HT                           (mapPair)
 
 
 {- |
@@ -99,7 +101,7 @@ You must make sure that the @length@
 is equal to the extent of the inner dimension of every transformed array.
 -}
 transform ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a, A.Elt (Complex a)) =>
    Sign a -> Int -> Transform (sh:.Int) (Complex a)
 transform sign len = transformWithCache $ cache sign len
 
@@ -110,14 +112,14 @@ but no Bluestein.
 This is more for testing and benchmarking than for real use.
 -}
 transformDecompose ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a, A.Elt (Complex a)) =>
    Sign a -> Int ->
    Transform (sh :. Int) (Complex a)
 transformDecompose =
    transformWithPlanner planDecomposeWithMapUpdate
 
 transformWithPlanner ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a, A.Elt (Complex a)) =>
    (Integer -> State.State PlanMap Plan) ->
    Sign a -> Int ->
    Transform (sh :. Int) (Complex a)
@@ -133,7 +135,7 @@ The size and type of the signal must match the parameters,
 that the cache was generated for.
 -}
 transformWithCache ::
-   (Slice sh, Shape sh, A.RealFloat a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.Elt (Complex a)) =>
    Cache (Complex a) -> Transform (sh:.Int) (Complex a)
 transformWithCache ch =
    case ch of
@@ -165,11 +167,11 @@ transformWithCache ch =
          subTransformPairWithCache subCaches
 
 subTransformWithCache ::
-   (A.RealFloat a) => Cache (Complex a) -> SubTransform (Complex a)
+   (A.RealFloat a, A.Elt (Complex a)) => Cache (Complex a) -> SubTransform (Complex a)
 subTransformWithCache ch = SubTransform (transformWithCache ch)
 
 subTransformPairWithCache ::
-   (A.RealFloat a) =>
+   (A.RealFloat a, A.Elt (Complex a)) =>
    (Cache (Complex a), Cache (Complex a)) -> SubTransformPair (Complex a)
 subTransformPairWithCache (ch0,ch1) =
    SubTransformPair (transformWithCache ch0) (transformWithCache ch1)
@@ -220,14 +222,14 @@ planWithMapUpdate n = do
 planCountPrimes :: Plan -> Int
 planCountPrimes (Plan _ struct) =
    case struct of
-      PlanIdentity -> 0
-      PlanSmall _ -> 0
-      PlanRadix2 p -> planCountPrimes p
-      PlanSplitRadix p -> planCountPrimes p
-      PlanPrime mp -> 1 + maybe 0 planCountPrimes mp
-      PlanCoprime (m, n) -> max (planCountPrimes m) (planCountPrimes n)
+      PlanIdentity         -> 0
+      PlanSmall _          -> 0
+      PlanRadix2 p         -> planCountPrimes p
+      PlanSplitRadix p     -> planCountPrimes p
+      PlanPrime mp         -> 1 + maybe 0 planCountPrimes mp
+      PlanCoprime (m, n)   -> max (planCountPrimes m) (planCountPrimes n)
       PlanComposite (m, n) -> max (planCountPrimes m) (planCountPrimes n)
-      PlanChirp p -> planCountPrimes p
+      PlanChirp p          -> planCountPrimes p
 
 type PlanMap = Map.Map Integer Plan
 
@@ -318,7 +320,7 @@ for signals of length @len@.
 You can use this cache in 'transformWithCache'.
 -}
 cache ::
-   (A.RealFloat a, A.FromIntegral Int a, Num a, Ord a) =>
+   (A.RealFloat a, A.FromIntegral Int a, Num a, Ord a, A.Elt (Complex a)) =>
    Sign a -> Int -> Cache (Complex a)
 cache sign len =
    cacheFromPlan
@@ -331,7 +333,7 @@ It is @(cache inverse x, cache forward x) = cacheDuplex x@
 but 'cacheDuplex' shares common data of both caches.
 -}
 cacheDuplex ::
-   (a ~ Complex b, A.RealFloat b, A.FromIntegral Int b, Num b) =>
+   (a ~ Complex b, A.RealFloat b, A.FromIntegral Int b, Num b, A.Elt (Complex b)) =>
    Int -> (Cache a, Cache a)
 cacheDuplex len =
    let p = plan $ fromIntegral len
@@ -346,7 +348,7 @@ data Direction = Forward | Inverse
 type CacheMap a = Map.Map (Integer,Direction) (Cache a)
 
 cacheFromPlan ::
-   (a ~ Complex b, A.RealFloat b, A.FromIntegral Int b, Num b) =>
+   (a ~ Complex b, A.RealFloat b, A.FromIntegral Int b, Num b, A.Elt (Complex b)) =>
    Plan -> (Direction, Sign b) -> Cache a
 cacheFromPlan p z =
    State.evalState (cacheFromPlanWithMapUpdate p z) Map.empty
@@ -356,7 +358,7 @@ cacheFromPlan p z =
 Detect and re-use common sub-caches.
 -}
 cacheFromPlanWithMap ::
-   (a ~ Complex b, A.RealFloat b, Num b, A.FromIntegral Int b) =>
+   (a ~ Complex b, A.RealFloat b, Num b, A.FromIntegral Int b, A.Elt (Complex b)) =>
    Plan -> (Direction, Sign b) ->
    State.State (CacheMap a) (Cache a)
 cacheFromPlanWithMap (Plan len struct) dsign@(_d,sign) =
@@ -416,7 +418,7 @@ cacheFromPlanWithMap (Plan len struct) dsign@(_d,sign) =
             (directionModes $ fromInteger padlen)
 
 cacheFromPlanWithMapUpdate ::
-   (a ~ Complex b, A.RealFloat b, A.FromIntegral Int b, Num b) =>
+   (a ~ Complex b, A.RealFloat b, A.FromIntegral Int b, Num b, A.Elt (Complex b)) =>
    Plan -> (Direction, Sign b) ->
    State.State (CacheMap a) (Cache a)
 cacheFromPlanWithMapUpdate p@(Plan len _) z = do
@@ -430,7 +432,7 @@ cacheFromPlanWithMapUpdate p@(Plan len _) z = do
          return m
 
 cacheFromPlanWithMapUpdate2 ::
-   (a ~ Complex b, A.RealFloat b, A.FromIntegral Int b, Num b) =>
+   (a ~ Complex b, A.RealFloat b, A.FromIntegral Int b, Num b, A.Elt (Complex b)) =>
    (Plan, Plan) -> ((Direction, Sign b), (Direction, Sign b)) ->
    State.State (CacheMap a) (Cache a, Cache a)
 cacheFromPlanWithMapUpdate2 (p0,p1) (dm0,dm1) =
@@ -469,14 +471,14 @@ data LevelCacheRadix2 a = LevelCacheRadix2 (Acc (Array DIM1 a))
    deriving (Show)
 
 levelCacheRadix2 ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Integer -> Sign a -> LevelCacheRadix2 (Complex a)
 levelCacheRadix2 n2 sign =
    LevelCacheRadix2 $
    Fourier.twiddleFactors2 (A.constant sign) (expInteger n2)
 
 transformRadix2InterleavedTime ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    LevelCacheRadix2 a ->
    SubTransform a ->
    Transform (sh:.Int) a
@@ -490,14 +492,14 @@ data LevelCacheSplitRadix a =
    deriving (Show)
 
 levelCacheSplitRadix ::
-   (A.RealFloat a, Num a, A.FromIntegral Int a) =>
+   (A.RealFloat a, Num a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Integer -> Sign a -> LevelCacheSplitRadix (Complex a)
 levelCacheSplitRadix n2 sign =
    LevelCacheSplitRadix (Fourier.imagSplitRadixPlain sign) $
    Fourier.twiddleFactorsSRPair (A.constant sign) (expInteger (div n2 2))
 
 transformSplitRadixInterleavedTime ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    LevelCacheSplitRadix a ->
    SubPairTransform a ->
    PairTransform (sh:.Int:.Int) a
@@ -508,7 +510,7 @@ transformSplitRadixInterleavedTime
    Fourier.ditSplitRadixReorder
 
 transformSplitRadixInterleavedTimeChain ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    CacheSplitRadixChain a ->
    PairTransform (sh:.Int:.Int) a
 transformSplitRadixInterleavedTimeChain chain =
@@ -525,7 +527,7 @@ newtype LevelCacheComposite a =
    deriving (Show)
 
 levelCacheComposite ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    (Integer, Integer) -> Sign a -> LevelCacheComposite (Complex a)
 levelCacheComposite (n,m) sign =
    LevelCacheComposite $
@@ -539,7 +541,7 @@ it must hold @n*m == length sig@ and @z ^ length sig == 1@.
 Cooley-Tukey-algorithm
 -}
 transformComposite ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    LevelCacheComposite a ->
    SubTransformPair a ->
    Transform (sh:.Int) a
@@ -580,7 +582,7 @@ and @n*m == length sig@ and @z ^ length sig == 1@.
 Good-Thomas algorithm
 -}
 transformCoprime ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    LevelCacheCoprime ->
    SubTransformPair a ->
    Transform (sh:.Int) a
@@ -646,7 +648,7 @@ data LevelCachePrime a =
       deriving (Show)
 
 levelCachePrime ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Integer ->
    Maybe (SubTransform (Complex a)) ->
    Sign a -> LevelCachePrime (Complex a)
@@ -665,7 +667,7 @@ levelCachePrime n maybeSubTrans sign =
 Rader's algorithm for prime length signals.
 -}
 transformPrime ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    LevelCachePrime a ->
    Maybe (SubTransformPair a) ->
    Transform (sh:.Int) a
@@ -700,7 +702,7 @@ Find bad factors e.g. in <http://oeis.org/A061092> and <http://oeis.org/A059411>
 and nicer factors in <http://oeis.org/A061303>.
 -}
 transformChirp2 ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a, A.Elt (Complex a)) =>
    Sign a -> Int ->
    Transform (sh :. Int) (Complex a)
 transformChirp2 = transformChirpComplete NumberTheory.ceilingPowerOfTwo
@@ -712,14 +714,14 @@ on an array with 5-smooth size.
 (5-smooth = all prime factors are at most 5)
 -}
 transformChirp235 ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a, A.Elt (Complex a)) =>
    Sign a -> Int ->
    Transform (sh :. Int) (Complex a)
 transformChirp235 = transformChirpComplete NumberTheory.ceiling5Smooth
 
 
 transformChirpComplete ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, Num a, Ord a, A.Elt (Complex a)) =>
    (Integer -> Integer) ->
    Sign a -> Int ->
    Transform (sh :. Int) (Complex a)
@@ -740,7 +742,7 @@ data LevelCacheChirp a =
       deriving (Show)
 
 levelCacheChirp ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Integer -> Integer ->
    SubTransform (Complex a) ->
    Sign a -> LevelCacheChirp (Complex a)
@@ -756,7 +758,7 @@ Bluestein's algorithm for signals of arbitrary length
 and possibly slightly generalised basis vectors.
 -}
 transformChirp ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    LevelCacheChirp a ->
    SubTransformPair a ->
    Transform (sh:.Int) a
@@ -776,7 +778,7 @@ Signals must have equal size and must not be empty.
 -}
 convolveCyclic ::
    (Shape sh, Slice sh, a ~ Complex b,
-    A.RealFloat b, A.FromIntegral Int b, Num b) =>
+    A.RealFloat b, A.FromIntegral Int b, Num b, A.Elt (Complex b)) =>
    Int ->
    Acc (Array (sh:.Int) a) ->
    Acc (Array (sh:.Int) a) ->
@@ -790,7 +792,7 @@ convolveCyclic leni =
            cacheFromPlan (plan len) zInv)
 
 convolveCyclicCache ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.FromIntegral Int b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.FromIntegral Int b, A.Elt (Complex b)) =>
    SubTransformPair a ->
    Acc (Array (sh:.Int) a) ->
    Acc (Array (sh:.Int) a) ->
@@ -799,7 +801,7 @@ convolveCyclicCache transs@(SubTransformPair trans _) x =
    convolveSpectrumCyclicCache transs $ scaleDown $ trans x
 
 convolveSingleSpectrumCyclicCache ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    SubTransformPair a ->
    Acc (Array DIM1 a) -> Transform (sh:.Int) a
 convolveSingleSpectrumCyclicCache caches x y =
@@ -812,7 +814,7 @@ That is you have to scale the spectrum by @recip (length x)@
 if you want a plain convolution.
 -}
 convolveSpectrumCyclicCache ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    SubTransformPair a ->
    Acc (Array (sh:.Int) a) -> Transform (sh:.Int) a
 convolveSpectrumCyclicCache (SubTransformPair trans transInv) x y =

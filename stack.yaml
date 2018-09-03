@@ -1,0 +1,9 @@
+resolver: lts-12.9
+packages:
+- .
+extra-deps:
+- accelerate-1.2.0.0
+- git: git@github.com:xc-jp/accelerate-utility.git
+  commit: c734fa01ec7c2e9a6016de2ec3937b83ca376bda
+- git: git@github.com:xc-jp/accelerate-arithmetic.git
+  commit: 3b0ef7e1cd0c4d1638b9eee4783f72d26a77e1d5

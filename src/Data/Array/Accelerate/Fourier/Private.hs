@@ -1,27 +1,29 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE Rank2Types       #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE TypeOperators    #-}
 module Data.Array.Accelerate.Fourier.Private where
 
-import qualified Data.Array.Accelerate.Fourier.Sign as Sign
 import qualified Data.Array.Accelerate.Convolution.Small as Cyclic
-import Data.Array.Accelerate.Fourier.Sign (Sign, )
+import           Data.Array.Accelerate.Fourier.Sign      (Sign)
+import qualified Data.Array.Accelerate.Fourier.Sign      as Sign
 
-import qualified Data.Array.Accelerate.Utility.Sliced as Sliced
-import qualified Data.Array.Accelerate.Utility.Sliced1 as Sliced1
+import qualified Data.Array.Accelerate.Utility.Sliced    as Sliced
+import qualified Data.Array.Accelerate.Utility.Sliced1   as Sliced1
 
-import qualified Data.Array.Accelerate.LinearAlgebra as LinAlg
-import Data.Array.Accelerate.LinearAlgebra (zipExtrudedVectorWith, )
+import           Data.Array.Accelerate.LinearAlgebra     (zipExtrudedVectorWith)
+import qualified Data.Array.Accelerate.LinearAlgebra     as LinAlg
 
-import qualified Data.Array.Accelerate.Utility.Lift.Exp as Exp
-import Data.Array.Accelerate.Utility.Lift.Exp (expr)
+import           Data.Array.Accelerate.Utility.Lift.Exp  (expr)
+import qualified Data.Array.Accelerate.Utility.Lift.Exp  as Exp
 
-import qualified Data.Array.Accelerate as A
-import Data.Array.Accelerate
-          (Exp, Acc, Array, DIM1, DIM2, Elt,
-           Z(Z), (:.)((:.)), Slice, Shape, (!), (?), )
-import Data.Complex (Complex((:+)), )
+import           Data.Array.Accelerate                   ((:.) ((:.)), Acc,
+                                                          Array, DIM1, DIM2,
+                                                          Elt, Exp, Shape,
+                                                          Slice, Z (Z), (!),
+                                                          (?))
+import qualified Data.Array.Accelerate                   as A
+import           Data.Complex                            (Complex ((:+)))
 
 
 type Transform sh a = Acc (Array sh a) -> Acc (Array sh a)
@@ -51,15 +53,15 @@ data SubPairTransform a =
            (forall sh. (Shape sh, Slice sh) => PairTransform (sh:.Int:.Int) a)
 
 
-cache2 :: (sign ~ Exp (Sign b), a ~ Exp (Complex b), A.RealFloat b) =>
+cache2 :: (sign ~ Exp (Sign b), a ~ Exp (Complex b), A.RealFloat b, A.Elt (Complex b)) =>
    sign -> a
-cache3 :: (sign ~ Exp (Sign b), a ~ Exp (Complex b), A.RealFloat b) =>
+cache3 :: (sign ~ Exp (Sign b), a ~ Exp (Complex b), A.RealFloat b, A.Elt (Complex b)) =>
    sign -> (a,a)
-cache4 :: (sign ~ Exp (Sign b), a ~ Exp (Complex b), A.RealFloat b) =>
+cache4 :: (sign ~ Exp (Sign b), a ~ Exp (Complex b), A.RealFloat b, A.Elt (Complex b)) =>
    sign -> (a,a,a)
 cache5 ::
    (sign ~ Exp (Sign b), a ~ Exp (Complex b),
-    A.RealFloat b, A.FromIntegral Int b) =>
+    A.RealFloat b, A.FromIntegral Int b, A.Elt(Complex b)) =>
    sign -> (a,a,a,a)
 
 cache2 _sign = -1
@@ -91,7 +93,7 @@ flatten2 x =
        \(ix :. k)  ->  let xi = x ! ix in k A.== 0 ? (A.fst xi, A.snd xi))
 
 transform2 ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    Exp a -> Transform (sh:.Int) a
 transform2 z arr =
    flatten2 $
@@ -116,7 +118,7 @@ flatten3 x =
                  [])
 
 transform3 ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    (Exp a, Exp a) -> Transform (sh:.Int) a
 transform3 (z,z2) arr =
    flatten3 $
@@ -146,7 +148,7 @@ flatten4 x =
                  [])
 
 transform4 ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    (Exp a, Exp a, Exp a) -> Transform (sh:.Int) a
 transform4 (z,z2,z3) arr =
    flatten4 $
@@ -200,7 +202,7 @@ Permutation.T: 0 1 2 4 3
 0 3 1 2 4
 -}
 transform5 ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    (Exp a, Exp a, Exp a, Exp a) -> Transform (sh:.Int) a
 transform5 (z1,z2,z3,z4) arr =
    flatten5 $
@@ -260,13 +262,13 @@ stack x y =
 twiddle factors for radix-2 Cooley-Tukey transforms
 -}
 twiddleFactors2 ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Exp Int -> Acc (A.Vector (Complex a))
 twiddleFactors2 sign len2 =
    A.generate (A.lift $ Z:.len2) $ twiddle2 sign len2 . A.indexHead
 
 twiddle2 ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Exp Int -> Exp Int -> Exp (Complex a)
 twiddle2 sign n2i ki =
    let n2 = A.fromIntegral n2i
@@ -275,7 +277,7 @@ twiddle2 sign n2i ki =
 
 
 twiddleFactors ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Exp Int -> Exp Int -> Acc (Array DIM2 (Complex a))
 twiddleFactors sign lenk lenj =
    A.generate (A.lift $ Z:.lenk:.lenj) $
@@ -283,14 +285,14 @@ twiddleFactors sign lenk lenj =
    \(_z :. k :. j) -> twiddle sign (lenk*lenj) k j
 
 twiddle ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Exp Int -> Exp Int -> Exp Int -> Exp (Complex a)
 twiddle sign n k j =
    Sign.cisRat sign n $ mod (k*j) n
 
 
 transformRadix2InterleavedTime ::
-   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b) =>
+   (Shape sh, Slice sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    Acc (Array DIM1 a) ->
    Transform (sh:.Int:.Int) a ->
    Transform (sh:.Int) a
@@ -312,7 +314,7 @@ transformRadix2InterleavedTime twiddles subTransform arr =
 
 
 initSplitRadix ::
-   (Slice sh, Shape sh, a ~ Complex b, A.RealFloat b) =>
+   (Slice sh, Shape sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    Acc (Array (sh:.Int) a) ->
    (Acc (Array (sh:.Int:.Int) a), Acc (Array (sh:.Int:.Int) a))
 initSplitRadix arr =
@@ -321,14 +323,14 @@ initSplitRadix arr =
         A.fill (A.lift $ sh:.(0::Int):.div len 2) 0)
 
 finishSplitRadix ::
-   (Slice sh, Shape sh, a ~ Complex b, A.RealFloat b) =>
+   (Slice sh, Shape sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    Acc (Array (sh:.Int:.Int) a) -> Acc (Array (sh:.Int) a)
 finishSplitRadix =
    flip A.slice (A.lift $ A.Any :. (0::Int) :. A.All)
 
 
 initSplitRadixFlat ::
-   (Slice sh, Shape sh, a ~ Complex b, A.RealFloat b) =>
+   (Slice sh, Shape sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    Acc (Array (sh:.Int) a) ->
    (Acc (Array DIM2 a), Acc (Array DIM2 a))
 initSplitRadixFlat arr =
@@ -337,7 +339,7 @@ initSplitRadixFlat arr =
         A.fill (A.lift $ Z:.(0::Int):.div len 2) 0)
 
 finishSplitRadixFlat ::
-   (Slice sh, Shape sh, a ~ Complex b, A.RealFloat b) =>
+   (Slice sh, Shape sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    Exp (sh:.Int) -> Acc (Array DIM2 a) -> Acc (Array (sh:.Int) a)
 finishSplitRadixFlat = A.reshape
 
@@ -348,7 +350,7 @@ imagSplitRadixPlain ::
 imagSplitRadixPlain sign = 0 :+ Sign.getSign sign
 
 imagSplitRadix ::
-   (A.Num a) =>
+   (A.Num a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Exp (Complex a)
 imagSplitRadix sign =
    A.lift (0 :+ Sign.toSign sign)
@@ -362,12 +364,12 @@ ditSplitRadixReorder (arr2, arr1) =
    in  (Sliced1.append evens arr1, twist 2 odds)
 
 ditSplitRadixBase ::
-   (Slice sh, Shape sh, A.RealFloat a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.Elt (Complex a)) =>
    PairTransform (sh:.Int:.Int) (Complex a)
 ditSplitRadixBase (arr2, arr1) = (transform2 (-1) arr2, arr1)
 
 ditSplitRadixStep ::
-   (Slice sh, Shape sh, a ~ Complex b, A.RealFloat b) =>
+   (Slice sh, Shape sh, a ~ Complex b, A.RealFloat b, A.Elt (Complex b)) =>
    Exp a ->
    (Acc (Array DIM1 a), Acc (Array DIM1 a)) ->
    PairTransform (sh:.Int:.Int) a
@@ -386,7 +388,7 @@ ditSplitRadixStep imag (twiddles1, twiddles3) (u, zIntl) =
 
 
 twiddleSR ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Exp Int -> Exp Int -> Exp Int -> Exp (Complex a)
 twiddleSR sign n4i ki ji =
    let n4 = A.fromIntegral n4i
@@ -395,13 +397,13 @@ twiddleSR sign n4i ki ji =
    in  Sign.cis sign $ pi*(k*j)/(2*n4)
 
 twiddleFactorsSR ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Exp Int -> Exp Int -> Acc (Array DIM1 (Complex a))
 twiddleFactorsSR sign len4 k =
    A.generate (A.lift $ Z:.len4) $ twiddleSR sign len4 k . A.indexHead
 
 twiddleFactorsSRPair ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Exp Int ->
    (Acc (Array DIM1 (Complex a)), Acc (Array DIM1 (Complex a)))
 twiddleFactorsSRPair sign len4 =
@@ -424,7 +426,7 @@ cycleDim3 arr =
 
 
 chirp ::
-   (A.RealFloat a, A.FromIntegral Int a) =>
+   (A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) -> Exp Int -> Exp a -> A.Acc (A.Array DIM1 (Complex a))
 chirp sign padLen lenFloat =
    A.generate (A.index1 padLen) $

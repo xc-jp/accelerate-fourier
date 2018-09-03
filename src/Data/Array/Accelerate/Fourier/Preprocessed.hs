@@ -1,6 +1,6 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE TypeOperators    #-}
 {- |
 The implementations in this module require
 that you know the transformation data set size on the Haskell side.
@@ -29,22 +29,21 @@ module Data.Array.Accelerate.Fourier.Preprocessed (
    SubTransformTriple(SubTransformTriple),
    ) where
 
+import           Data.Array.Accelerate.Fourier.Private (PairTransform, SubTransformPair (SubTransformPair),
+                                                        SubTransformTriple (SubTransformTriple),
+                                                        Transform)
 import qualified Data.Array.Accelerate.Fourier.Private as Fourier
-import qualified Data.Array.Accelerate.Fourier.Sign as Sign
-import Data.Array.Accelerate.Fourier.Sign (Sign, )
-import Data.Array.Accelerate.Fourier.Private
-          (SubTransformPair(SubTransformPair),
-           SubTransformTriple(SubTransformTriple),
-           Transform, PairTransform, )
+import           Data.Array.Accelerate.Fourier.Sign    (Sign)
+import qualified Data.Array.Accelerate.Fourier.Sign    as Sign
 
-import qualified Data.Array.Accelerate.LinearAlgebra as LinAlg
-import Data.Array.Accelerate.LinearAlgebra (zipExtrudedVectorWith, )
-import Data.Array.Accelerate.Data.Complex (Complex, )
+import           Data.Array.Accelerate.Data.Complex    (Complex)
+import           Data.Array.Accelerate.LinearAlgebra   (zipExtrudedVectorWith)
+import qualified Data.Array.Accelerate.LinearAlgebra   as LinAlg
 
-import qualified Data.Array.Accelerate.Utility.Sliced as Sliced
+import qualified Data.Array.Accelerate.Utility.Sliced  as Sliced
 
-import qualified Data.Array.Accelerate as A
-import Data.Array.Accelerate (Slice, Shape, (:.), Exp, )
+import           Data.Array.Accelerate                 ((:.), Exp, Shape, Slice)
+import qualified Data.Array.Accelerate                 as A
 
 
 {- |
@@ -52,7 +51,7 @@ Decimation in time for power-of-two using the split-radix algorithm.
 Should be faster than 'dit2'.
 -}
 ditSplitRadix ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Sign a ->
    Int ->
    Transform (sh:.Int) (Complex a)
@@ -78,7 +77,7 @@ which merge the global shape with our auxiliary dimension
 and then work with @sh = Z@.
 -}
 ditSplitRadixGo ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Exp (Sign a) ->
    Int ->
    PairTransform (sh:.Int:.Int) (Complex a)
@@ -98,7 +97,7 @@ ditSplitRadixGo mode len =
 Decimation in time for power-of-two sizes.
 -}
 dit2 ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Sign a ->
    Int ->
    Transform (sh:.Int) (Complex a)
@@ -116,7 +115,7 @@ dit2 mode len =
 Decimation in frequency for power-of-two sizes.
 -}
 dif2 ::
-   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a) =>
+   (Slice sh, Shape sh, A.RealFloat a, A.FromIntegral Int a, A.Elt (Complex a)) =>
    Sign a ->
    Int ->
    Transform (sh:.Int) (Complex a)
@@ -141,7 +140,7 @@ Transforms in 'SubTransformPair'
 are ordered from least-significant to most-significant dimension.
 -}
 transform2d ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    SubTransformPair (Complex a) ->
    Transform (sh:.Int:.Int) (Complex a)
 transform2d (SubTransformPair transform0 transform1) =
@@ -153,7 +152,7 @@ Transforms in 'SubTransformTriple'
 are ordered from least-significant to most-significant dimension.
 -}
 transform3d ::
-   (Shape sh, Slice sh, A.RealFloat a) =>
+   (Shape sh, Slice sh, A.RealFloat a, A.Elt (Complex a)) =>
    SubTransformTriple (Complex a) ->
    Transform (sh:.Int:.Int:.Int) (Complex a)
 transform3d (SubTransformTriple transform0 transform1 transform2) =
